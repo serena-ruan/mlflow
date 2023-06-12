@@ -20,7 +20,7 @@ from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, RESOURCE_DOES_
 from mlflow.store.artifact.models_artifact_repo import ModelsArtifactRepository
 from mlflow.store.artifact.runs_artifact_repo import RunsArtifactRepository
 from mlflow.tracking.artifact_utils import _download_artifact_from_uri, _upload_artifact_to_uri
-from mlflow.types.schema import Schema
+from mlflow.types.schema import ParamSchema, Schema
 from mlflow.types.utils import _infer_schema, _infer_schema_from_type_hint
 from mlflow.utils.uri import append_to_uri_path
 
@@ -48,7 +48,9 @@ class ModelSignature:
     :py:class:`Schema <mlflow.types.Schema>`.
     """
 
-    def __init__(self, inputs: Schema, outputs: Schema = None):
+    def __init__(
+        self, inputs: Schema, outputs: Schema = None, inference_configs: ParamSchema = None
+    ):
         if not isinstance(inputs, Schema):
             raise TypeError(
                 "inputs must be mlflow.models.signature.Schema, got '{}'".format(type(inputs))
@@ -60,6 +62,7 @@ class ModelSignature:
             )
         self.inputs = inputs
         self.outputs = outputs
+        self.inference_configs = inference_configs
 
     def to_dict(self) -> Dict[str, Any]:
         """

@@ -1,5 +1,6 @@
 import decimal
 import json
+import logging
 import os
 from typing import Union, Any, Dict, List
 
@@ -9,7 +10,7 @@ import pandas as pd
 from mlflow.exceptions import MlflowException, INVALID_PARAMETER_VALUE
 from mlflow.models import Model
 from mlflow.store.artifact.utils.models import get_model_name_and_version
-from mlflow.types import DataType, Schema, TensorSpec
+from mlflow.types import DataType, ParamSchema, Schema, TensorSpec
 from mlflow.types.utils import TensorsNotSupportedException, clean_tensor_type
 from mlflow.utils.annotations import experimental
 from mlflow.utils.proto_json_utils import (
@@ -34,6 +35,8 @@ PyFuncInput = Union[
     pd.DataFrame, pd.Series, np.ndarray, "csc_matrix", "csr_matrix", List[Any], Dict[str, Any], str
 ]
 PyFuncOutput = Union[pd.DataFrame, pd.Series, np.ndarray, list, str]
+
+_logger = logging.getLogger(__name__)
 
 
 class _Example:
@@ -728,6 +731,34 @@ def _enforce_schema(pf_input: PyFuncInput, input_schema: Schema):
         return _enforce_named_col_schema(pf_input, input_schema)
     else:
         return _enforce_unnamed_col_schema(pf_input, input_schema)
+
+
+def _enforce_kwargs_schema(kwargs: Dict[str, Any], schema: ParamSchema) -> Dict[str, Any]:
+    allowed_keys = {input.name for input in schema.inputs}
+    ignored_keys = set(kwargs.keys()) - allowed_keys
+    _logger.warning(
+        f"Invalid arguments {list(ignored_keys)} are ignored for inference. "
+        "To enable them, please add corresponding schema in ModelSignature."
+    )
+
+    kwargs = {k: kwargs[k] for k in kwargs if k in allowed_keys}
+
+    for param_spec in schema.inputs:
+        if param_spec.name in kwargs:
+            param_value = kwargs[param_spec.name]
+            if str(type(param_value)) != param_spec.type:
+                raise MlflowException(
+                    f"Invalid type for parameter {param_spec.name}: "
+                    f"expected {param_spec.type} but got {type(param_value)}"
+                )
+        else:
+            if not param_spec.optional:
+                raise MlflowException(
+                    "Missing required parameter: {}".format(param_spec.name),
+                    INVALID_PARAMETER_VALUE,
+                )
+
+    return kwargs
 
 
 def validate_schema(data: PyFuncInput, expected_schema: Schema) -> None:

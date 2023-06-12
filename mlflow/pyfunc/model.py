@@ -85,11 +85,22 @@ class PythonModel:
                         can use to perform inference.
         """
 
+    def load_parameters(self, parameters):
+        """
+        Loads parameters from the specified :class:`~PythonModelContext` that can be used while
+        loding the model or by :func:`~PythonModel.predict` when evaluating inputs. When loading an
+        MLflow model with :func:`~load_model`, this method is called as soon as the
+        :class:`~PythonModel` is constructed.
+
+        :param parameters: A dictionary of parameters that the model can use for loading.
+        """
+        self.parameters = parameters or {}
+
     def _get_type_hints(self):
         return _extract_type_hints(self.predict, input_arg_index=1)
 
     @abstractmethod
-    def predict(self, context, model_input):
+    def predict(self, context, model_input, **kwargs):
         """
         Evaluates a pyfunc-compatible input and produces a pyfunc-compatible output.
         For more information about the pyfunc input/output API, see the :ref:`pyfunc-inference-api`.
@@ -114,8 +125,8 @@ class _FunctionPythonModel(PythonModel):
     def _get_type_hints(self):
         return _extract_type_hints(self.func, input_arg_index=0)
 
-    def predict(self, context, model_input):
-        return self.func(model_input)
+    def predict(self, context, model_input, **kwargs):
+        return self.func(model_input, **kwargs)
 
 
 class PythonModelContext:
@@ -154,6 +165,7 @@ def _save_model_with_class_artifacts_params(
     mlflow_model=None,
     pip_requirements=None,
     extra_pip_requirements=None,
+    inference_configs=None,
 ):
     """
     :param path: The path to which to save the Python model.
@@ -261,7 +273,7 @@ def _save_model_with_class_artifacts_params(
     _PythonEnv.current().to_yaml(os.path.join(path, _PYTHON_ENV_FILE_NAME))
 
 
-def _load_pyfunc(model_path):
+def _load_pyfunc(model_path, **kwargs):
     pyfunc_config = _get_flavor_configuration(
         model_path=model_path, flavor_name=mlflow.pyfunc.FLAVOR_NAME
     )
@@ -300,6 +312,7 @@ def _load_pyfunc(model_path):
 
     context = PythonModelContext(artifacts=artifacts)
     python_model.load_context(context=context)
+    python_model.load_parameters(parameters=kwargs)
     signature = mlflow.models.Model.load(model_path).signature
     return _PythonModelPyfuncWrapper(
         python_model=python_model, context=context, signature=signature
@@ -361,5 +374,5 @@ class _PythonModelPyfuncWrapper:
 
         return model_input
 
-    def predict(self, model_input):
-        return self.python_model.predict(self.context, self._convert_input(model_input))
+    def predict(self, model_input, **kwargs):
+        return self.python_model.predict(self.context, self._convert_input(model_input), **kwargs)

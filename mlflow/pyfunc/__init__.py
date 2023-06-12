@@ -219,7 +219,7 @@ import threading
 import inspect
 import functools
 from copy import deepcopy
-from typing import Any, Union, Iterator, Tuple
+from typing import Any, Dict, Union, Iterator, Optional, Tuple
 
 import numpy as np
 import pandas
@@ -236,6 +236,7 @@ from mlflow.models.model import MLMODEL_FILE_NAME
 from mlflow.models.utils import (
     PyFuncInput,
     PyFuncOutput,
+    _enforce_kwargs_schema,
     _enforce_schema,
     _save_example,
 )
@@ -388,7 +389,7 @@ class PyFuncModel:
         self._model_impl = model_impl
         self._predict_fn = getattr(model_impl, predict_fn)
 
-    def predict(self, data: PyFuncInput) -> PyFuncOutput:
+    def predict(self, data: PyFuncInput, **kwargs) -> PyFuncOutput:
         """
         Generate model predictions.
 
@@ -415,17 +416,22 @@ class PyFuncModel:
         if input_schema is not None:
             data = _enforce_schema(data, input_schema)
 
+        # kwargs override existing inference_configs of the model
+        if kwargs:
+            inference_configs_schema = self.metadata.get_inferece_configs_schema()
+            kwargs = _enforce_kwargs_schema(kwargs, inference_configs_schema)
+
         if "openai" in sys.modules and MLFLOW_OPENAI_RETRIES_ENABLED.get():
             from mlflow.openai.retry import openai_auto_retry_patch
 
             try:
                 with openai_auto_retry_patch():
-                    return self._predict_fn(data)
+                    return self._predict_fn(data, **kwargs)
             except Exception:
                 if _MLFLOW_OPENAI_TESTING.get():
                     raise
 
-        return self._predict_fn(data)
+        return self._predict_fn(data, **kwargs)
 
     @experimental
     def unwrap_python_model(self):
@@ -605,8 +611,8 @@ class _ServedPyFuncModel(PyFuncModel):
         self._client = client
         self._server_pid = server_pid
 
-    def predict(self, data):
-        result = self._client.invoke(data).get_predictions()
+    def predict(self, data, **kwargs):
+        result = self._client.invoke(data, **kwargs).get_predictions()
         if isinstance(result, pandas.DataFrame):
             result = result[result.columns[0]]
         return result
@@ -1247,8 +1253,8 @@ def spark_udf(spark, model_uri, result_type="double", env_manager=_EnvManager.LO
             server_redirect_log_thread = threading.Thread(
                 target=server_redirect_log_thread_func,
                 args=(scoring_server_proc.stdout,),
+                daemon=True,
             )
-            server_redirect_log_thread.setDaemon(True)
             server_redirect_log_thread.start()
 
             try:
@@ -1366,6 +1372,7 @@ def save_model(
     pip_requirements=None,
     extra_pip_requirements=None,
     metadata=None,
+    inference_configs: Optional[Dict[str, Any]] = None,
     **kwargs,
 ):
     """
@@ -1607,6 +1614,7 @@ def save_model(
             mlflow_model=mlflow_model,
             pip_requirements=pip_requirements,
             extra_pip_requirements=extra_pip_requirements,
+            inference_configs=inference_configs,
         )
 
 
@@ -1626,6 +1634,7 @@ def log_model(
     pip_requirements=None,
     extra_pip_requirements=None,
     metadata=None,
+    inference_configs: Optional[Dict[str, Any]] = None,
 ):
     """
     Log a Pyfunc model with custom inference logic and optional data dependencies as an MLflow
@@ -1765,6 +1774,8 @@ def log_model(
 
                      .. Note:: Experimental: This parameter may change or be removed in a future
                                              release without warning.
+    :param inference_configs: A dictionary of valid configurations that can be applied to the
+                              model during inference. The schema is constrained by signature.
     :return: A :py:class:`ModelInfo <mlflow.models.model.ModelInfo>` instance that contains the
              metadata of the logged model.
     """
@@ -1784,6 +1795,7 @@ def log_model(
         pip_requirements=pip_requirements,
         extra_pip_requirements=extra_pip_requirements,
         metadata=metadata,
+        inference_configs=inference_configs,
     )
 
 
