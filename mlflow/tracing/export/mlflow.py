@@ -75,6 +75,7 @@ class MlflowSpanExporter(SpanExporter):
         # TODO: Make this async
         try:
             self._client._upload_trace_data(trace.info, trace.data)
+            _logger.warning(f"upload trace info: {trace.info}\n")
             self._client._upload_ended_trace_info(
                 request_id=trace.info.request_id,
                 timestamp_ms=trace.info.timestamp_ms + trace.info.execution_time_ms,

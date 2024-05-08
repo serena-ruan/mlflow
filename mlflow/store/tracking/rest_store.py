@@ -303,9 +303,13 @@ class RestStore(AbstractStore):
                 tags=tags_proto,
             )
         )
+        import warnings
+
+        warnings.warn(f"test -- end trace status: {status}, req_body: {req_body}\n")
         # EndTrace endpoint is a dynamic path built with the request_id
         endpoint = get_single_trace_endpoint(request_id)
         response_proto = self._call_endpoint(EndTrace, req_body, endpoint=endpoint)
+        warnings.warn(f"response trace info: {TraceInfo.from_proto(response_proto.trace_info)}")
         return TraceInfo.from_proto(response_proto.trace_info)
 
     def delete_traces(

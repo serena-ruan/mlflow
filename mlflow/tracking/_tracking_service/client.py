@@ -214,6 +214,7 @@ class TrackingServiceClient:
         Returns:
             The updated TraceInfo object.
         """
+        _logger.warning(f"test -- end trace status: {status}\n")
         return self.store.end_trace(
             request_id=request_id,
             timestamp_ms=timestamp_ms,

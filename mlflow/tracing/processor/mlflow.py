@@ -146,6 +146,9 @@ class MlflowSpanProcessor(SimpleSpanProcessor):
             self._update_trace_info(trace, span)
             deduplicate_span_names_in_place(list(trace.span_dict.values()))
 
+        _logger.warning(
+            f"test -- root span status {span.status}, updated trace info {trace.info}\n"
+        )
         super().on_end(span)
 
     def _update_trace_info(self, trace: Trace, root_span: OTelReadableSpan):
