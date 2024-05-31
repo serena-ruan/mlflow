@@ -318,7 +318,7 @@ class FileStore(AbstractStore):
                 if exp is not None:
                     experiments.append(exp)
             except MissingConfigException as e:
-                logging.warning(
+                _logger.warning(
                     f"Malformed experiment '{exp_id}'. Detailed error {e}", exc_info=True
                 )
         filtered = SearchExperimentsUtils.filter(experiments, filter_string)
@@ -411,7 +411,7 @@ class FileStore(AbstractStore):
         meta["tags"] = self.get_all_experiment_tags(experiment_id)
         experiment = _read_persisted_experiment_dict(meta)
         if experiment_id != experiment.experiment_id:
-            logging.warning(
+            _logger.warning(
                 "Experiment ID mismatch for exp %s. ID recorded as '%s' in meta data. "
                 "Experiment will be ignored.",
                 experiment_id,
@@ -464,7 +464,7 @@ class FileStore(AbstractStore):
                 new_info = run_info._copy_with_overrides(lifecycle_stage=LifecycleStage.DELETED)
                 self._overwrite_run_info(new_info, deleted_time=deletion_time)
             else:
-                logging.warning("Run metadata is in invalid state.")
+                _logger.warning("Run metadata is in invalid state.")
         meta_dir = os.path.join(self.root_directory, experiment_id)
         overwrite_yaml(
             root=meta_dir,
@@ -506,7 +506,7 @@ class FileStore(AbstractStore):
                 new_info = run_info._copy_with_overrides(lifecycle_stage=LifecycleStage.ACTIVE)
                 self._overwrite_run_info(new_info, deleted_time=None)
             else:
-                logging.warning("Run metadata is in invalid state.")
+                _logger.warning("Run metadata is in invalid state.")
         overwrite_yaml(
             root=meta_dir,
             file_name=FileStore.META_DATA_FILE_NAME,
@@ -657,7 +657,7 @@ class FileStore(AbstractStore):
             end_time=None,
             lifecycle_stage=LifecycleStage.ACTIVE,
         )
-        # Persist run metadata and create directories for logging metrics, parameters, artifacts
+        # Persist run metadata and create directories for _logger metrics, parameters, artifacts
         run_dir = self._get_run_dir(run_info.experiment_id, run_info.run_id)
         mkdir(run_dir)
         run_info_dict = _make_persisted_run_info_dict(run_info)
@@ -906,7 +906,7 @@ class FileStore(AbstractStore):
                 # trap and warn known issues, will raise unexpected exceptions to caller
                 run_info = self._get_run_info_from_dir(r_dir)
                 if run_info.experiment_id != experiment_id:
-                    logging.warning(
+                    _logger.warning(
                         "Wrong experiment ID (%s) recorded for run '%s'. "
                         "It should be %s. Run will be ignored.",
                         str(run_info.experiment_id),
@@ -922,7 +922,7 @@ class FileStore(AbstractStore):
                 # this is at debug level because if the same store is used for
                 # artifact storage, it's common the folder is not a run folder
                 r_id = os.path.basename(r_dir)
-                logging.debug(
+                _logger.debug(
                     "Malformed run '%s'. Detailed error %s", r_id, str(rnfe), exc_info=True
                 )
         return run_infos
@@ -987,7 +987,7 @@ class FileStore(AbstractStore):
 
     def _validate_new_param_value(self, param_path, param_key, run_id, new_value):
         """
-        When logging a parameter with a key that already exists, this function is used to
+        When _logger a parameter with a key that already exists, this function is used to
         enforce immutability by verifying that the specified parameter value matches the existing
         value.
         :raises: py:class:`mlflow.exceptions.MlflowException` if the specified new parameter value
@@ -998,7 +998,7 @@ class FileStore(AbstractStore):
         if current_value != new_value:
             raise MlflowException(
                 f"Changing param values is not allowed. Param with key='{param_key}' was already"
-                f" logged with value='{current_value}' for run ID='{run_id}'. Attempted logging"
+                f" logged with value='{current_value}' for run ID='{run_id}'. Attempted _logger"
                 f" new value '{new_value}'.",
                 databricks_pb2.INVALID_PARAMETER_VALUE,
             )
@@ -1213,20 +1213,20 @@ class FileStore(AbstractStore):
                 input_dir_full_path, FileStore.META_DATA_FILE_NAME
             )
             if fs_input.source_type != InputVertexType.DATASET:
-                logging.warning(
+                _logger.warning(
                     f"Encountered invalid run input source type '{fs_input.source_type}'. Skipping."
                 )
                 continue
 
             matching_dataset_dirs = [d for d in dataset_dirs if d == fs_input.source_id]
             if not matching_dataset_dirs:
-                logging.warning(
+                _logger.warning(
                     f"Failed to find dataset with ID '{fs_input.source_id}' referenced as an input"
                     f" of the run with ID '{run_info.run_id}'. Skipping."
                 )
                 continue
             elif len(matching_dataset_dirs) > 1:
-                logging.warning(
+                _logger.warning(
                     f"Found multiple datasets with ID '{fs_input.source_id}'. Using the first one."
                 )
 
@@ -1625,7 +1625,7 @@ class FileStore(AbstractStore):
                     request_id = os.path.basename(trace_path)
                     _logger.warning(
                         f"Malformed trace with request_id '{request_id}'. Detailed error {e}",
-                        exc_info=_logger.isEnabledFor(logging.DEBUG),
+                        exc_info=_logger.isEnabledFor(_logger.DEBUG),
                     )
             trace_info_and_paths.sort(key=lambda x: x[0].timestamp_ms)
             deleted_traces = min(len(trace_info_and_paths), max_traces or len(trace_info_and_paths))
@@ -1700,7 +1700,7 @@ class FileStore(AbstractStore):
             except MissingConfigException as e:
                 # trap malformed trace exception and log warning
                 request_id = os.path.basename(trace_path)
-                logging.warning(
+                _logger.warning(
                     f"Malformed trace with request_id '{request_id}'. Detailed error {e}",
                     exc_info=True,
                 )
