@@ -1465,3 +1465,4 @@ message DeleteTraceTag {
   message Response {
   }
 }
+message Foo {}
