@@ -41,7 +41,7 @@ def save_pipeline_pretrained_weights(path, pipeline, flavor_conf, processor=None
         processor.save_pretrained(component_dir.joinpath(_PROCESSOR_BINARY_DIR_NAME))
 
 
-def load_model_and_components_from_local(path, flavor_conf, accelerate_conf, device=None):
+def load_model_and_components_from_local(path, flavor_conf, accelerate_conf, device=None, **kwargs):
     """
     Load the model and components of a Transformer pipeline from the specified local path.
 
@@ -59,7 +59,9 @@ def load_model_and_components_from_local(path, flavor_conf, accelerate_conf, dev
     #     "artifacts/pipeline/*" path. In order to load the older formats after the change, the
     #     presence of the new path key is checked.
     model_path = path.joinpath(flavor_conf.get(FlavorKey.MODEL_BINARY, "pipeline"))
-    loaded[FlavorKey.MODEL] = _load_model(model_path, flavor_conf, accelerate_conf, device)
+    loaded[FlavorKey.MODEL] = _load_model(
+        model_path, flavor_conf, accelerate_conf, device, **kwargs
+    )
 
     components = flavor_conf.get(FlavorKey.COMPONENTS, [])
     if FlavorKey.PROCESSOR_TYPE in flavor_conf:
@@ -193,7 +195,7 @@ def _load_class_from_transformers_config(model_name_or_path, revision=None):
         return cls, True
 
 
-def _load_model(model_name_or_path, flavor_conf, accelerate_conf, device, revision=None):
+def _load_model(model_name_or_path, flavor_conf, accelerate_conf, device, revision=None, **kwargs):
     """
     Try to load a model with various loading strategies.
       1. Try to load the model with accelerate
@@ -202,13 +204,18 @@ def _load_model(model_name_or_path, flavor_conf, accelerate_conf, device, revisi
     """
     import transformers
 
+    trust_remote = kwargs.get("trust_remote_code")
+
     if hasattr(transformers, flavor_conf[FlavorKey.MODEL_TYPE]):
         cls = getattr(transformers, flavor_conf[FlavorKey.MODEL_TYPE])
-        trust_remote = False
+        if trust_remote is None:
+            trust_remote = False
     else:
-        cls, trust_remote = _load_class_from_transformers_config(
+        cls, loaded_trust_remote = _load_class_from_transformers_config(
             model_name_or_path, revision=revision
         )
+        if trust_remote is None:
+            trust_remote = loaded_trust_remote
 
     load_kwargs = {"revision": revision} if revision else {}
     if trust_remote:

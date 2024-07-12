@@ -1210,6 +1210,7 @@ def _load_model(path: str, flavor_config, return_type: str, device=None, **kwarg
             flavor_conf=flavor_config,
             accelerate_conf=accelerate_model_conf,
             device=device,
+            **kwargs,
         )
     else:
         model_and_components = load_model_and_components_from_huggingface_hub(
