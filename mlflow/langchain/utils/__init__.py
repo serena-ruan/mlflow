@@ -145,8 +145,17 @@ def langgraph_types():
         return ()
 
 
+def runnable_types():
+    try:
+        from langchain_core.runnables.base import Runnable
+
+        return (Runnable,)
+    except ImportError:
+        return ()
+
+
 def supported_lc_types():
-    return base_lc_types() + lc_runnables_types() + langgraph_types()
+    return base_lc_types() + lc_runnables_types() + langgraph_types() + runnable_types()
 
 
 # Wrapping as a function to avoid callign supported_lc_types() at import time
