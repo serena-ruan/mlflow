@@ -198,9 +198,8 @@ def test_basic_estimator(dataset_binomial):
         )
         assert run_data.tags == get_expected_class_tags(estimator)
         if isinstance(estimator, MultilayerPerceptronClassifier):
-            assert MODEL_DIR not in run_data.artifacts
+            assert mlflow.last_logged_model() is None
         else:
-            assert MODEL_DIR in run_data.artifacts
             loaded_model = load_model_by_run_id(run_id)
             assert loaded_model.stages[0].uid == model.uid
 
@@ -266,7 +265,6 @@ def test_meta_estimator_fit(dataset_binomial):
     run_data = get_run_data(run_id)
     assert run_data.params == truncate_param_dict(stringify_dict_values(get_params_to_log(ova)))
     assert run_data.tags == get_expected_class_tags(ova)
-    assert MODEL_DIR in run_data.artifacts
     loaded_model = load_model_by_run_id(run_id)
     assert loaded_model.stages[0].uid == ova_model.uid
 
@@ -288,7 +286,6 @@ def test_fit_with_params(dataset_binomial):
         stringify_dict_values(get_params_to_log(lr.copy(extra_params)))
     )
     assert run_data.tags == get_expected_class_tags(lr)
-    assert MODEL_DIR in run_data.artifacts
     loaded_model = load_model_by_run_id(run_id)
     assert loaded_model.stages[0].uid == lr_model.uid
 
@@ -512,13 +509,12 @@ def test_pipeline(dataset_text):
             stringify_dict_values(_get_instance_param_map(estimator, uid_to_indexed_name_map))
         )
         assert run_data.tags == get_expected_class_tags(estimator)
-        assert MODEL_DIR in run_data.artifacts
         loaded_model = load_model_by_run_id(run_id)
         pd.testing.assert_frame_equal(
             loaded_model.transform(dataset_text).toPandas(),
             model.transform(dataset_text).toPandas(),
         )
-        assert run_data.artifacts == ["estimator_info.json", "model"]
+        assert run_data.artifacts == ["estimator_info.json"]
 
 
 # Test on metric of rmse (smaller is better) and r2 (larger is better)
@@ -569,16 +565,13 @@ def test_param_search_estimator(
         )
     )
     assert run_data.tags == get_expected_class_tags(estimator)
-    assert MODEL_DIR in run_data.artifacts
     loaded_model = load_model_by_run_id(run_id)
     assert loaded_model.stages[0].uid == model.uid
     loaded_best_model = load_model_by_run_id(run_id, "best_model")
     assert loaded_best_model.stages[0].uid == model.bestModel.uid
     assert run_data.artifacts == [
-        "best_model",
         "best_parameters.json",
         "estimator_info.json",
-        "model",
         "search_results.csv",
     ]
 
