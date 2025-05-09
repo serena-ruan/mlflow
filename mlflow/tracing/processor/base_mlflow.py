@@ -111,6 +111,7 @@ class BaseMlflowSpanProcessor(SimpleSpanProcessor):
                 _logger.debug(f"Trace data with request ID {trace_id} not found.")
                 return
 
+            _logger.debug("Updating trace info...")
             self._update_trace_info(trace, span)
             deduplicate_span_names_in_place(list(trace.span_dict.values()))
 
@@ -194,8 +195,10 @@ class BaseMlflowSpanProcessor(SimpleSpanProcessor):
         if SpanAttributeKey.MODEL_ID not in trace.info.request_metadata:
             if model_id := get_otel_attribute(root_span, SpanAttributeKey.MODEL_ID):
                 trace.info.request_metadata[SpanAttributeKey.MODEL_ID] = model_id
+                _logger.debug(f"Update trace info with active model ID {model_id}")
             elif active_model_id := _get_active_model_id_global():
                 trace.info.request_metadata[SpanAttributeKey.MODEL_ID] = active_model_id
+                _logger.debug(f"Update trace info with active model ID {active_model_id}")
 
     def _truncate_metadata(self, value: Optional[str]) -> str:
         """Get truncated value of the attribute if it exceeds the maximum length."""
