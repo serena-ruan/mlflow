@@ -29,7 +29,11 @@ from mlflow.tracing.utils import (
 from mlflow.tracking.context.databricks_repo_context import DatabricksRepoRunContext
 from mlflow.tracking.context.git_context import GitRunContext
 from mlflow.tracking.context.registry import resolve_tags
-from mlflow.tracking.fluent import _get_experiment_id, _get_latest_active_run, get_active_model_id
+from mlflow.tracking.fluent import (
+    _get_active_model_id_global,
+    _get_experiment_id,
+    _get_latest_active_run,
+)
 from mlflow.utils.mlflow_tags import TRACE_RESOLVE_TAGS_ALLOWLIST
 
 _logger = logging.getLogger(__name__)
@@ -187,11 +191,11 @@ class BaseMlflowSpanProcessor(SimpleSpanProcessor):
 
         # model_id is used in start_span and passed as attribute, so it should
         # be used even if active_model_id exists
-        # TODO: We should remove the model ID from the span attributes
-        if model_id := get_otel_attribute(root_span, SpanAttributeKey.MODEL_ID):
-            trace.info.request_metadata[SpanAttributeKey.MODEL_ID] = model_id
-        elif active_model_id := get_active_model_id():
-            trace.info.request_metadata[SpanAttributeKey.MODEL_ID] = active_model_id
+        if SpanAttributeKey.MODEL_ID not in trace.info.request_metadata:
+            if model_id := get_otel_attribute(root_span, SpanAttributeKey.MODEL_ID):
+                trace.info.request_metadata[SpanAttributeKey.MODEL_ID] = model_id
+            elif active_model_id := _get_active_model_id_global():
+                trace.info.request_metadata[SpanAttributeKey.MODEL_ID] = active_model_id
 
     def _truncate_metadata(self, value: Optional[str]) -> str:
         """Get truncated value of the attribute if it exceeds the maximum length."""

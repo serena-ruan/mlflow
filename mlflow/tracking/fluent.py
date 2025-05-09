@@ -10,7 +10,6 @@ import inspect
 import logging
 import os
 import threading
-from contextvars import ContextVar
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -3168,10 +3167,11 @@ class ActiveModelContext:
         return self._set_by_user
 
 
-_ACTIVE_MODEL_CONTEXT = ContextVar(
-    "active_model_context",
-    default=ActiveModelContext(),
-)
+# _ACTIVE_MODEL_CONTEXT = ContextVar(
+#     "active_model_context",
+#     default=ActiveModelContext(),
+# )
+_ACTIVE_MODEL_CONTEXT = ThreadLocalVariable(default_factory=lambda: ActiveModelContext())
 
 
 class ActiveModel(LoggedModel):
@@ -3303,6 +3303,27 @@ def get_active_model_id() -> Optional[str]:
         The active model ID if set, otherwise None.
     """
     return _get_active_model_context().model_id
+
+
+def _get_active_model_id_global():
+    """
+    Get active model id from global context by checking all threads. The
+    `mlflow.get_active_model_id` API only returns active model_id from current thread.
+    This API is useful for the case where one needs to get a model_id set by a separate thread.
+    """
+    active_model_ids = [
+        model_ctx.model_id
+        for model_ctx in _ACTIVE_MODEL_CONTEXT.get_all_thread_values().values()
+        if model_ctx.model_id is not None
+    ]
+    if active_model_ids:
+        if len(set(active_model_ids)) > 1:
+            _logger.warning(
+                f"Multiple active model IDs found across threads {set(active_model_ids)}, "
+                "returning None."
+            )
+        return active_model_ids[0]
+    return None
 
 
 def _reset_active_model_context() -> None:
