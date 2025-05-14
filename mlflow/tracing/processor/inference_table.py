@@ -10,13 +10,19 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter
 from mlflow.entities.trace_info import TraceInfo
 from mlflow.entities.trace_status import TraceStatus
 from mlflow.environment_variables import MLFLOW_EXPERIMENT_ID
-from mlflow.tracing.constant import TRACE_SCHEMA_VERSION, TRACE_SCHEMA_VERSION_KEY, SpanAttributeKey
+from mlflow.tracing.constant import (
+    TRACE_SCHEMA_VERSION,
+    TRACE_SCHEMA_VERSION_KEY,
+    SpanAttributeKey,
+    TraceMetadataKey,
+)
 from mlflow.tracing.trace_manager import InMemoryTraceManager
 from mlflow.tracing.utils import (
     deduplicate_span_names_in_place,
     generate_trace_id_v3,
     get_otel_attribute,
     maybe_get_dependencies_schemas,
+    maybe_get_logged_model_id,
     maybe_get_request_id,
 )
 
@@ -86,6 +92,9 @@ class InferenceTableSpanProcessor(SimpleSpanProcessor):
             tags.update(dependencies_schema)
 
         if span._parent is None:
+            request_metadata = {TRACE_SCHEMA_VERSION_KEY: str(TRACE_SCHEMA_VERSION)}
+            if model_id := maybe_get_logged_model_id():
+                request_metadata[TraceMetadataKey.MODEL_ID] = model_id
             trace_info = TraceInfo(
                 request_id=trace_id,
                 client_request_id=databricks_request_id,
@@ -97,7 +106,7 @@ class InferenceTableSpanProcessor(SimpleSpanProcessor):
                 timestamp_ms=span.start_time // 1_000_000,  # nanosecond to millisecond
                 execution_time_ms=None,
                 status=TraceStatus.IN_PROGRESS,
-                request_metadata={TRACE_SCHEMA_VERSION_KEY: str(TRACE_SCHEMA_VERSION)},
+                request_metadata=request_metadata,
                 tags=tags,
             )
             self._trace_manager.register_trace(span.context.trace_id, trace_info)
@@ -121,6 +130,19 @@ class InferenceTableSpanProcessor(SimpleSpanProcessor):
 
             trace.info.execution_time_ms = (span.end_time - span.start_time) // 1_000_000
             trace.info.status = TraceStatus.from_otel_status(span.status)
+            if SpanAttributeKey.MODEL_ID not in trace.info.request_metadata:
+                try:
+                    from mlflow.tracking.fluent import get_active_model_id
+
+                    active_model_id = get_active_model_id()
+                    trace.info.request_metadata[SpanAttributeKey.MODEL_ID] = active_model_id
+                except ImportError:
+                    pass
+                except Exception as e:
+                    _logger.warning(
+                        f"Failed to get model ID from the active model: {e}. "
+                        "Skipping adding model ID to trace metadata."
+                    )
             deduplicate_span_names_in_place(list(trace.span_dict.values()))
 
         super().on_end(span)
