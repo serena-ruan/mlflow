@@ -473,7 +473,14 @@ def call_endpoint(
 
     response = verify_rest_response(response, endpoint)
     response_to_parse = response.text
-    js_dict = json.loads(response_to_parse)
+    try:
+        js_dict = json.loads(response_to_parse)
+    except Exception:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Response is not a valid JSON object: {response_to_parse}")
+        raise
 
     parse_dict(js_dict=js_dict, message=response_proto)
     return response_proto
