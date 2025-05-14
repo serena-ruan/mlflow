@@ -218,6 +218,15 @@ def _try_get_prediction_context():
 def maybe_get_request_id(is_evaluate=False) -> Optional[str]:
     """Get the request ID if the current prediction is as a part of MLflow model evaluation."""
     context = _try_get_prediction_context()
+    if context is None:
+        import traceback
+
+        _logger.warning("context is None")
+        # traceback.print_stack()
+    else:
+        _logger.warning(f"Got context: {asdict(context)}")
+        # traceback.print_stack()
+
     if not context or (is_evaluate and not context.is_evaluate):
         return None
 
@@ -293,11 +302,16 @@ def maybe_set_prediction_context(context: Optional["Context"]):
     is not None. Otherwise no-op.
     """
     if not IS_TRACING_SDK_ONLY and context:
+        import traceback
+
+        _logger.warning(f"Setting context: {asdict(context)}")
+        traceback.print_stack()
         from mlflow.pyfunc.context import set_prediction_context
 
         with set_prediction_context(context):
             yield
     else:
+        _logger.warning("context is None, skipping setting prediction context. ")
         yield
 
 

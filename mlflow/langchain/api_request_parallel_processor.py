@@ -23,7 +23,7 @@ import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Optional, Union
 
 import langchain.chains
@@ -215,6 +215,7 @@ def process_api_requests(
     callback_handlers: Optional[list[BaseCallbackHandler]] = None,
     convert_chat_responses: bool = False,
     params: Optional[dict[str, Any]] = None,
+    context: Optional[Context] = None,
 ):
     """
     Processes API requests in parallel.
@@ -247,6 +248,11 @@ def process_api_requests(
             elif req := next(requests_iter, None):
                 # get new request
                 index, converted_chat_request_json = req
+                context = context or get_prediction_context()
+                if context is None:
+                    _logger.warning("context is None in process_api_requests, ")
+                else:
+                    _logger.warning("prediction_context in process_api_requests", asdict(context))
                 next_request = APIRequest(
                     index=index,
                     lc_model=lc_model,
@@ -256,7 +262,7 @@ def process_api_requests(
                     convert_chat_responses=convert_chat_responses,
                     did_perform_chat_conversion=did_perform_chat_conversion,
                     stream=False,
-                    prediction_context=get_prediction_context(),
+                    prediction_context=context,
                     params=params,
                 )
                 status_tracker.start_task()

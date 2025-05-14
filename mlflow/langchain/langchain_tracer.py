@@ -72,6 +72,15 @@ class MlflowLangchainTracer(BaseCallbackHandler, metaclass=ExceptionSafeAbstract
         # run_id: (LiveSpan, OTel token)
         self._run_span_mapping: dict[str, SpanWithToken] = {}
         self._prediction_context = prediction_context
+        # import traceback
+        from dataclasses import asdict
+
+        if self._prediction_context is None:
+            _logger.warning("Prediction context is None")
+            # traceback.print_stack()
+        else:
+            _logger.warning(f"Prediction context set to {asdict(self._prediction_context)}")
+            # traceback.print_stack()
 
     def _get_span_by_run_id(self, run_id: UUID) -> Optional[LiveSpan]:
         if span_with_token := self._run_span_mapping.get(str(run_id), None):
