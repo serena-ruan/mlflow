@@ -305,7 +305,7 @@ def maybe_set_prediction_context(context: Optional["Context"]):
         import traceback
 
         _logger.warning(f"Setting context: {asdict(context)}")
-        traceback.print_stack()
+        # traceback.print_stack()
         from mlflow.pyfunc.context import set_prediction_context
 
         with set_prediction_context(context):
