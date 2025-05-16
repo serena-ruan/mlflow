@@ -234,6 +234,7 @@ class DatabricksDeploymentClient(BaseDeploymentClient):
                 },
             }
         """
+        warnings.warn(f"inputs: {inputs}")
         return self._call_endpoint(
             method="POST",
             prefix="/",
