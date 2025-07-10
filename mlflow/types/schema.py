@@ -439,6 +439,16 @@ class Object(BaseType):
 
         """
         # Merging object type with AnyType makes all properties optional
+        if isinstance(other, AnyType) or self == other:
+            return self
+        if not isinstance(other, Object):
+            raise MlflowException(
+                f"Can't merge object with non-object type: {type(other).__name__}"
+            )
+        p1 = {p.name: p for p in self.properties}
+        p2 = {p.name: p for p in other.properties}
+        return Object([p1.get(name, p2.get(name)) for name in p1.keys() | p2.keys()])
+
         if isinstance(other, AnyType):
             return Object(
                 properties=[
