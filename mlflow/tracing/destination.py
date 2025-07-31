@@ -62,6 +62,7 @@ class Databricks(TraceDestination):
         if self.experiment_id is not None:
             self.experiment_id = str(self.experiment_id)
 
+    def _update_experiment_id(self):
         if self.experiment_name is not None:
             from mlflow.tracking._tracking_service.utils import _get_store
 
@@ -69,7 +70,8 @@ class Databricks(TraceDestination):
             experiment_id = _get_store().get_experiment_by_name(self.experiment_name).experiment_id
             if self.experiment_id is not None and self.experiment_id != experiment_id:
                 raise MlflowException.invalid_parameter_value(
-                    "experiment_id and experiment_name must refer to the same experiment"
+                    "experiment_id and experiment_name of Databricks destination must refer to "
+                    "the same experiment"
                 )
             self.experiment_id = experiment_id
 

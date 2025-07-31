@@ -116,6 +116,26 @@ def test_set_destination_databricks(monkeypatch):
     assert isinstance(processors[0].span_exporter, MlflowV3SpanExporter)
 
 
+def test_set_destination_databricks_experiment_name(monkeypatch):
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "databricks")
+    destination = Databricks(experiment_name="test_experiment")
+    assert destination.experiment_id is None
+
+    with mock.patch("mlflow.tracking._tracking_service.utils._get_store") as mock_get_store:
+        mock_get_store.return_value = mock.MagicMock()
+        mock_get_store.return_value.get_experiment_by_name = mock.MagicMock(
+            return_value=mock.MagicMock(experiment_id="123")
+        )
+        mlflow.tracing.set_destination(destination)
+        assert destination.experiment_id == "123"
+
+    tracer = _get_tracer("test")
+    processors = tracer.span_processor._span_processors
+    assert len(processors) == 1
+    assert isinstance(processors[0], MlflowV3SpanProcessor)
+    assert isinstance(processors[0].span_exporter, MlflowV3SpanExporter)
+
+
 def test_disable_enable_tracing():
     @mlflow.trace
     def test_fn():

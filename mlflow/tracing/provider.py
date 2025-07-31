@@ -226,6 +226,7 @@ def set_destination(destination: TraceDestination):
             "Automatically setting the tracking URI to `databricks` "
             "because the tracing destination is set to Databricks."
         )
+        destination._update_experiment_id()
 
     # The destination needs to be persisted because the tracer setup can be re-initialized
     # e.g. when the tracing is disabled and re-enabled, or tracking URI is changed, etc.
