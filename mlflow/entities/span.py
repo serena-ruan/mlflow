@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from functools import lru_cache
+from functools import cached_property
 from typing import Any, Union
 
 from opentelemetry.proto.trace.v1.trace_pb2 import Span as OTelProtoSpan
@@ -112,8 +112,7 @@ class Span:
         # deserialization of the attribute values.
         self._attributes = _CachedSpanAttributesRegistry(otel_span)
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def trace_id(self) -> str:
         """The trace ID of the span, a unique identifier for the trace it belongs to."""
         return self.get_attribute(SpanAttributeKey.REQUEST_ID)
@@ -918,9 +917,14 @@ class _CachedSpanAttributesRegistry(_SpanAttributesRegistry):
     spans that are immutable, and thus implemented as a subclass of _SpanAttributesRegistry.
     """
 
-    @lru_cache(maxsize=128)
+    def __init__(self, otel_span: OTelSpan):
+        super().__init__(otel_span)
+        self._cache: dict[str, Any] = {}
+
     def get(self, key: str):
-        return super().get(key)
+        if key not in self._cache:
+            self._cache[key] = super().get(key)
+        return self._cache[key]
 
     def set(self, key: str, value: Any):
         raise MlflowException(
