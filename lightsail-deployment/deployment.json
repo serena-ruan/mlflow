@@ -1,7 +1,7 @@
 {
   "containers": {
     "mlflow": {
-      "image": ":mlflow-demo.mlflow-latest.11",
+      "image": ":mlflow-demo.mlflow-latest.14",
       "ports": {
         "80": "HTTP"
       }
