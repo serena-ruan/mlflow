@@ -1,0 +1,22 @@
+{
+  "containers": {
+    "mlflow": {
+      "image": ":mlflow-demo.mlflow-latest.11",
+      "ports": {
+        "80": "HTTP"
+      }
+    }
+  },
+  "publicEndpoint": {
+    "containerName": "mlflow",
+    "containerPort": 80,
+    "healthCheck": {
+      "healthyThreshold": 2,
+      "unhealthyThreshold": 2,
+      "timeoutSeconds": 5,
+      "intervalSeconds": 30,
+      "path": "/health",
+      "successCodes": "200-499"
+    }
+  }
+}
